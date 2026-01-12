@@ -21,6 +21,7 @@ export interface ModelConfig {
   maxTokens: number;
   inputCostPer1M?: number;
   outputCostPer1M?: number;
+  isReasoning?: boolean; // OpenAI reasoning models: use max_completion_tokens, no temperature
 }
 
 export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
@@ -45,7 +46,7 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
     name: 'Gemini',
     displayName: 'Google Gemini',
     endpoint: 'https://generativelanguage.googleapis.com/v1beta',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-3-flash-preview',
     apiKeyPrefix: 'AIza',
   },
   grok: {
@@ -84,7 +85,26 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     outputCostPer1M: 4.0,
   },
 
-  // OpenAI models
+  // OpenAI models - Reasoning (max_completion_tokens, NO temperature)
+  'gpt-5.2': {
+    id: 'gpt-5.2',
+    displayName: 'GPT-5.2',
+    provider: 'openai',
+    maxTokens: 32768,
+    inputCostPer1M: 1.75,
+    outputCostPer1M: 14.0,
+    isReasoning: true,
+  },
+  'o3-mini': {
+    id: 'o3-mini',
+    displayName: 'O3 Mini',
+    provider: 'openai',
+    maxTokens: 65536,
+    inputCostPer1M: 1.1,
+    outputCostPer1M: 4.4,
+    isReasoning: true,
+  },
+  // OpenAI models - Standard (max_tokens, temperature OK)
   'gpt-4o': {
     id: 'gpt-4o',
     displayName: 'GPT-4o',
@@ -92,6 +112,7 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxTokens: 16384,
     inputCostPer1M: 2.5,
     outputCostPer1M: 10.0,
+    isReasoning: false,
   },
   'gpt-4o-mini': {
     id: 'gpt-4o-mini',
@@ -100,9 +121,26 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxTokens: 16384,
     inputCostPer1M: 0.15,
     outputCostPer1M: 0.6,
+    isReasoning: false,
   },
 
   // Gemini models
+  'gemini-3-pro-preview': {
+    id: 'gemini-3-pro-preview',
+    displayName: 'Gemini 3 Pro',
+    provider: 'gemini',
+    maxTokens: 65536,
+    inputCostPer1M: 2.5,
+    outputCostPer1M: 10.0,
+  },
+  'gemini-3-flash-preview': {
+    id: 'gemini-3-flash-preview',
+    displayName: 'Gemini 3 Flash',
+    provider: 'gemini',
+    maxTokens: 65536,
+    inputCostPer1M: 0.5,
+    outputCostPer1M: 3.0,
+  },
   'gemini-2.0-flash': {
     id: 'gemini-2.0-flash',
     displayName: 'Gemini 2.0 Flash',
@@ -110,22 +148,6 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxTokens: 8192,
     inputCostPer1M: 0.075,
     outputCostPer1M: 0.3,
-  },
-  'gemini-1.5-flash': {
-    id: 'gemini-1.5-flash',
-    displayName: 'Gemini 1.5 Flash',
-    provider: 'gemini',
-    maxTokens: 8192,
-    inputCostPer1M: 0.075,
-    outputCostPer1M: 0.3,
-  },
-  'gemini-1.5-pro': {
-    id: 'gemini-1.5-pro',
-    displayName: 'Gemini 1.5 Pro',
-    provider: 'gemini',
-    maxTokens: 8192,
-    inputCostPer1M: 1.25,
-    outputCostPer1M: 5.0,
   },
 
   // Grok models
@@ -146,6 +168,20 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     outputCostPer1M: 4.0,
   },
 };
+
+/**
+ * Check if a model is a reasoning model (OpenAI o1/o3/gpt-5.x)
+ */
+export function isReasoningModel(modelId: string): boolean {
+  const config = MODEL_CONFIGS[modelId];
+  if (config?.isReasoning !== undefined) {
+    return config.isReasoning;
+  }
+  // Fallback detection by model ID pattern
+  return modelId.startsWith('gpt-5') ||
+         modelId.startsWith('o1') ||
+         modelId.startsWith('o3');
+}
 
 export function getModelsByProvider(provider: AIProviderType): ModelConfig[] {
   return Object.values(MODEL_CONFIGS).filter((m) => m.provider === provider);

@@ -1,10 +1,16 @@
 /**
  * OpenAI Provider
  * LLM provider implementation for OpenAI API
+ *
+ * IMPORTANT: Reasoning models (gpt-5.x, o1, o3) require special handling:
+ * - Use max_completion_tokens instead of max_tokens
+ * - Do NOT send temperature parameter
+ * - Require higher token budget (4096+ minimum)
  */
 
 import { BaseProvider, type LLMConfig } from './base-provider.js';
 import type { LLMResponse, LLMOptions, LLMMessage } from '../../domain/interfaces/llm-provider.interface.js';
+import { isReasoningModel } from '../../domain/constants/model-configs.js';
 
 interface OpenAIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -49,6 +55,34 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   /**
+   * Build request body with proper handling for reasoning vs standard models
+   */
+  private buildRequestBody(
+    messages: OpenAIMessage[],
+    options?: LLMOptions
+  ): Record<string, unknown> {
+    const isReasoning = isReasoningModel(this.model);
+    const maxTokens = options?.maxTokens ?? (isReasoning ? 4096 : 1000);
+
+    const body: Record<string, unknown> = {
+      model: this.model,
+      messages,
+    };
+
+    // Reasoning models: use max_completion_tokens, NO temperature
+    // Standard models: use max_tokens, temperature OK
+    if (isReasoning) {
+      body.max_completion_tokens = maxTokens;
+      // Do NOT set temperature for reasoning models - it causes 400 errors
+    } else {
+      body.max_tokens = maxTokens;
+      body.temperature = options?.temperature ?? 0.7;
+    }
+
+    return body;
+  }
+
+  /**
    * Generate text completion using OpenAI API
    */
   async generate(
@@ -78,18 +112,15 @@ export class OpenAIProvider extends BaseProvider {
         content: prompt,
       });
 
+      const requestBody = this.buildRequestBody(messages, options);
+
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.config.apiKey}`,
         },
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          temperature: options?.temperature ?? 0.7,
-          max_tokens: options?.maxTokens ?? 1000,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -109,9 +140,18 @@ export class OpenAIProvider extends BaseProvider {
         };
       }
 
+      // Check for empty response (reasoning model token budget exhausted)
+      const content = data.choices[0].message.content;
+      if (!content && data.choices[0].finish_reason === 'length') {
+        return {
+          success: false,
+          error: 'Response truncated - reasoning model may need higher token budget',
+        };
+      }
+
       return {
         success: true,
-        content: data.choices[0].message.content,
+        content: content || '',
         usage: {
           promptTokens: data.usage.prompt_tokens,
           completionTokens: data.usage.completion_tokens,
@@ -143,18 +183,15 @@ export class OpenAIProvider extends BaseProvider {
         content: m.content,
       }));
 
+      const requestBody = this.buildRequestBody(openAIMessages, options);
+
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.config.apiKey}`,
         },
-        body: JSON.stringify({
-          model: this.model,
-          messages: openAIMessages,
-          temperature: options?.temperature ?? 0.7,
-          max_tokens: options?.maxTokens ?? 1000,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -174,9 +211,17 @@ export class OpenAIProvider extends BaseProvider {
         };
       }
 
+      const content = data.choices[0].message.content;
+      if (!content && data.choices[0].finish_reason === 'length') {
+        return {
+          success: false,
+          error: 'Response truncated - reasoning model may need higher token budget',
+        };
+      }
+
       return {
         success: true,
-        content: data.choices[0].message.content,
+        content: content || '',
         usage: {
           promptTokens: data.usage.prompt_tokens,
           completionTokens: data.usage.completion_tokens,
@@ -200,11 +245,27 @@ export class OpenAIProvider extends BaseProvider {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/models`, {
-        method: 'GET',
+      // Use a minimal request to validate - handle reasoning models properly
+      const isReasoning = isReasoningModel(this.model);
+
+      const body: Record<string, unknown> = {
+        model: this.model,
+        messages: [{ role: 'user', content: 'Hello' }],
+      };
+
+      if (isReasoning) {
+        body.max_completion_tokens = 10;
+      } else {
+        body.max_tokens = 10;
+      }
+
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${this.config.apiKey}`,
         },
+        body: JSON.stringify(body),
       });
 
       return response.ok;
@@ -224,6 +285,6 @@ export class OpenAIProvider extends BaseProvider {
    * Get available models
    */
   getAvailableModels(): string[] {
-    return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+    return ['gpt-5.2', 'o3-mini', 'gpt-4o', 'gpt-4o-mini'];
   }
 }
