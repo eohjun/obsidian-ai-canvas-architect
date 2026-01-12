@@ -1,0 +1,29 @@
+{
+  "name": "obsidian-ai-canvas-architect",
+  "version": "0.1.0",
+  "description": "AI-powered canvas generation from topics/notes using embeddings and spatial clustering",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "typecheck": "tsc -noEmit -skipLibCheck"
+  },
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "ai",
+    "canvas",
+    "visualization",
+    "pkm",
+    "knowledge-management"
+  ],
+  "author": "eohjun",
+  "license": "MIT",
+  "devDependencies": {
+    "builtin-modules": "^5.0.0",
+    "esbuild": "^0.27.2",
+    "obsidian": "^1.11.0",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3"
+  }
+}
