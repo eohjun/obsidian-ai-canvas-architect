@@ -3,7 +3,7 @@
  * All UI text is in English
  */
 
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, normalizePath } from 'obsidian';
 import type AICanvasArchitectPlugin from '../main.js';
 import type { AIProvider } from '../types.js';
 
@@ -210,7 +210,7 @@ export class AICanvasArchitectSettingTab extends PluginSettingTab {
 
   private async checkEmbeddingsStatus(statusEl: HTMLElement): Promise<void> {
     const folder = this.plugin.settings.embeddings.folder;
-    const indexPath = `${folder}/index.json`;
+    const indexPath = normalizePath(`${folder}/index.json`);
     const exists = await this.app.vault.adapter.exists(indexPath);
 
     if (exists) {

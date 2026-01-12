@@ -243,12 +243,19 @@ export default class AICanvasArchitectPlugin extends Plugin {
         options.topic || options.seedNotePath?.split('/').pop()?.replace('.md', '') || 'knowledge-map';
       const canvasPath = this.canvasRepository.generateCanvasPath(canvasName, options.outputFolder);
 
-      // Ensure output folder exists
+      // Ensure output folder exists (cross-platform safe)
       if (options.outputFolder) {
         const folderPath = normalizePath(options.outputFolder);
         const folderExists = await this.app.vault.adapter.exists(folderPath);
         if (!folderExists) {
-          await this.app.vault.createFolder(folderPath);
+          try {
+            await this.app.vault.createFolder(folderPath);
+          } catch (error) {
+            // Handle "already exists" error from sync race conditions as success
+            if (!(error instanceof Error && error.message.includes('already exists'))) {
+              throw error;
+            }
+          }
         }
       }
 

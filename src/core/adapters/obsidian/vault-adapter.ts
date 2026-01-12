@@ -131,13 +131,22 @@ export class VaultAdapter {
 
   /**
    * Create a folder if it doesn't exist
+   * Cross-platform safe: handles "already exists" errors from sync race conditions
    */
   async ensureFolder(path: string): Promise<void> {
     const normalizedPath = normalizePath(path);
     const exists = await this.app.vault.adapter.exists(normalizedPath);
 
     if (!exists) {
-      await this.app.vault.createFolder(normalizedPath);
+      try {
+        await this.app.vault.createFolder(normalizedPath);
+      } catch (error) {
+        // Handle "already exists" error from sync race conditions as success
+        if (error instanceof Error && error.message.includes('already exists')) {
+          return;
+        }
+        throw error;
+      }
     }
   }
 }
