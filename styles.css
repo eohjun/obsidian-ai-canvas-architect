@@ -1,0 +1,139 @@
+/* AI Canvas Architect Styles */
+
+/* Settings Tab */
+.aca-embeddings-status {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.aca-status-success {
+  background-color: var(--background-modifier-success);
+  color: var(--text-success);
+}
+
+.aca-status-warning {
+  background-color: var(--background-modifier-warning);
+  color: var(--text-warning);
+}
+
+.aca-status-error {
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+/* Canvas Control Modal */
+.aca-modal {
+  max-width: 500px;
+}
+
+.aca-modal h2 {
+  margin-bottom: 16px;
+}
+
+.aca-modal-seed-info {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background-color: var(--background-secondary);
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.aca-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.aca-modal-buttons button {
+  min-width: 100px;
+}
+
+/* Progress Modal */
+.aca-progress-modal {
+  min-width: 400px;
+}
+
+.aca-progress-modal h2 {
+  margin-bottom: 16px;
+}
+
+.aca-progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.aca-progress-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: var(--background-secondary);
+  transition: background-color 0.2s ease;
+}
+
+.aca-step-pending {
+  color: var(--text-muted);
+}
+
+.aca-step-running {
+  background-color: var(--background-modifier-hover);
+}
+
+.aca-step-completed {
+  color: var(--text-success);
+}
+
+.aca-step-error {
+  background-color: var(--background-modifier-error);
+  color: var(--text-error);
+}
+
+.aca-step-icon {
+  font-size: 1.2em;
+  width: 20px;
+  text-align: center;
+}
+
+.aca-step-spinning {
+  animation: aca-spin 1s linear infinite;
+}
+
+@keyframes aca-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aca-step-label {
+  flex: 1;
+}
+
+.aca-step-message {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.aca-progress-status {
+  margin-top: 8px;
+  padding: 8px;
+  text-align: center;
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.aca-progress-cancel {
+  margin-top: 16px;
+  width: 100%;
+}

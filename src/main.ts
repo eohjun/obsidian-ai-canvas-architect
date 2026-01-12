@@ -1,49 +1,80 @@
 /**
- * AI Canvas Architect - Main Plugin Entry
- *
- * Phase 0: POC & API Validation
- * - Test direct .canvas file creation
- * - Validate node rendering performance
- * - Test group node containment
- * - Test mixed coordinate placement
+ * AI Canvas Architect
+ * Generate visual knowledge maps from your notes using AI-powered spatial reasoning
  */
 
 import { Plugin, Notice, normalizePath } from 'obsidian';
-import type { PluginSettings, CanvasData, CanvasTextNode, CanvasGroupNode, CanvasEdge } from './types';
-import { DEFAULT_SETTINGS } from './types';
+import type { PluginSettings } from './types.js';
+import { DEFAULT_SETTINGS } from './types.js';
+import { AICanvasArchitectSettingTab } from './settings/index.js';
+import {
+  CanvasControlModal,
+  ProgressModal,
+  type CanvasGenerationOptions,
+} from './views/index.js';
+
+// Application Layer
+import { CanvasBuilderService } from './core/application/services/canvas-builder.service.js';
+import { LabelClustersUseCase } from './core/application/use-cases/label-clusters.js';
+
+// Adapters
+import { ObsidianCanvasRepository } from './core/adapters/obsidian/canvas-repository.js';
+import { VaultEmbeddingsAdapter, generateNoteId } from './core/adapters/embedding/index.js';
+import { OpenAIProvider } from './core/adapters/llm/openai-provider.js';
+import { AnthropicProvider } from './core/adapters/llm/anthropic-provider.js';
+import type { BaseProvider } from './core/adapters/llm/base-provider.js';
 
 export default class AICanvasArchitectPlugin extends Plugin {
   settings!: PluginSettings;
+  private canvasRepository!: ObsidianCanvasRepository;
+  private embeddingsAdapter!: VaultEmbeddingsAdapter;
+  private llmProvider: BaseProvider | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
 
-    // POC Command: Generate test canvas with 100 nodes
-    this.addCommand({
-      id: 'poc-generate-test-canvas',
-      name: 'POC: Generate Test Canvas (100 nodes)',
-      callback: () => this.generatePOCCanvas(),
+    // Initialize adapters
+    this.canvasRepository = new ObsidianCanvasRepository(this.app);
+    this.embeddingsAdapter = new VaultEmbeddingsAdapter(this.app, {
+      embeddingsFolder: this.settings.embeddings.folder,
     });
 
-    // POC Command: Test group containment
+    // Initialize LLM provider
+    this.initializeLLMProvider();
+
+    // Register commands
     this.addCommand({
-      id: 'poc-test-group-containment',
-      name: 'POC: Test Group Node Containment',
-      callback: () => this.testGroupContainment(),
+      id: 'generate-canvas-from-topic',
+      name: 'Generate Canvas from Topic',
+      callback: () => this.openCanvasModal(),
     });
 
-    // POC Command: Test mixed coordinates
     this.addCommand({
-      id: 'poc-test-mixed-coordinates',
-      name: 'POC: Test Mixed Positive/Negative Coordinates',
-      callback: () => this.testMixedCoordinates(),
+      id: 'generate-canvas-from-note',
+      name: 'Generate Canvas from Current Note',
+      checkCallback: (checking) => {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (activeFile && activeFile.extension === 'md') {
+          if (!checking) {
+            this.openCanvasModal(undefined, activeFile.path);
+          }
+          return true;
+        }
+        return false;
+      },
     });
 
-    console.log('AI Canvas Architect loaded (POC mode)');
+    // Register settings tab
+    this.addSettingTab(new AICanvasArchitectSettingTab(this.app, this));
+
+    // Ribbon icon
+    this.addRibbonIcon('network', 'Generate Knowledge Canvas', () => {
+      this.openCanvasModal();
+    });
   }
 
   async onunload(): Promise<void> {
-    console.log('AI Canvas Architect unloaded');
+    // Cleanup if needed
   }
 
   async loadSettings(): Promise<void> {
@@ -52,270 +83,191 @@ export default class AICanvasArchitectPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+    this.initializeLLMProvider();
+
+    // Update embeddings adapter with new folder
+    this.embeddingsAdapter = new VaultEmbeddingsAdapter(this.app, {
+      embeddingsFolder: this.settings.embeddings.folder,
+    });
   }
 
-  /**
-   * POC: Generate a canvas with 100 text nodes in a grid pattern
-   * Tests: Canvas creation, large node count rendering
-   */
-  private async generatePOCCanvas(): Promise<void> {
-    const startTime = performance.now();
-    const nodeCount = 100;
-    const cols = 10;
-    const nodeWidth = 200;
-    const nodeHeight = 100;
-    const gap = 50;
+  private initializeLLMProvider(): void {
+    const { provider, apiKeys, model } = this.settings.ai;
+    const apiKey = apiKeys[provider];
 
-    const nodes: CanvasTextNode[] = [];
-    const edges: CanvasEdge[] = [];
+    if (!apiKey) {
+      this.llmProvider = null;
+      return;
+    }
 
-    // Generate 100 nodes in a 10x10 grid
-    for (let i = 0; i < nodeCount; i++) {
-      const row = Math.floor(i / cols);
-      const col = i % cols;
-      const x = col * (nodeWidth + gap);
-      const y = row * (nodeHeight + gap);
+    if (provider === 'openai') {
+      this.llmProvider = new OpenAIProvider({ apiKey, model });
+    } else {
+      this.llmProvider = new AnthropicProvider({ apiKey, model });
+    }
+  }
 
-      nodes.push({
-        id: `node-${i}`,
-        type: 'text',
-        x,
-        y,
-        width: nodeWidth,
-        height: nodeHeight,
-        text: `Node ${i + 1}\nRow: ${row + 1}, Col: ${col + 1}`,
+  private openCanvasModal(topic?: string, seedNotePath?: string): void {
+    const modal = new CanvasControlModal(
+      this.app,
+      this.settings,
+      (options) => this.generateCanvas(options),
+      topic,
+      seedNotePath
+    );
+    modal.open();
+  }
+
+  private async generateCanvas(options: CanvasGenerationOptions): Promise<void> {
+    // Check embeddings availability
+    const embeddingsAvailable = await this.embeddingsAdapter.isAvailable();
+    if (!embeddingsAvailable) {
+      new Notice('Vault Embeddings not found. Please install and configure the plugin.');
+      return;
+    }
+
+    // Create progress modal
+    const progressModal = new ProgressModal(this.app);
+    progressModal.open();
+    progressModal.initSteps([
+      'Finding related notes',
+      'Computing spatial layout',
+      'Clustering notes',
+      'Generating cluster labels',
+      'Creating canvas file',
+    ]);
+
+    try {
+      // Step 1: Find related notes
+      progressModal.setCurrentStep(0);
+      progressModal.setStatus('Searching for related notes...');
+
+      let noteEmbeddings;
+
+      if (options.seedNotePath) {
+        // Use seed note to find similar notes
+        const seedNoteId = generateNoteId(options.seedNotePath);
+        const similarNotes = await this.embeddingsAdapter.findSimilar(
+          seedNoteId,
+          options.maxNodes,
+          options.minSimilarity
+        );
+
+        // Get embeddings for similar notes
+        const noteIds = similarNotes.map((n) => n.noteId);
+        noteIds.unshift(seedNoteId); // Include seed note
+        noteEmbeddings = await this.embeddingsAdapter.getEmbeddings(noteIds);
+      } else if (options.topic) {
+        // Use topic to find related notes
+        const similarNotes = await this.embeddingsAdapter.searchByTopic(options.topic, {
+          limit: options.maxNodes,
+          threshold: options.minSimilarity,
+        });
+
+        const noteIds = similarNotes.map((n) => n.noteId);
+        noteEmbeddings = await this.embeddingsAdapter.getEmbeddings(noteIds);
+      }
+
+      if (!noteEmbeddings || noteEmbeddings.length === 0) {
+        progressModal.setError(0, 'No related notes found');
+        return;
+      }
+
+      progressModal.updateStep(0, 'completed', `Found ${noteEmbeddings.length} notes`);
+
+      // Step 2: Build canvas using CanvasBuilderService
+      progressModal.setCurrentStep(1);
+      progressModal.setStatus('Computing spatial layout...');
+
+      const canvasBuilder = new CanvasBuilderService({
+        nodeWidth: this.settings.canvas.nodeWidth,
+        nodeHeight: this.settings.canvas.nodeHeight,
+        clusterEps: this.settings.clustering.eps,
+        clusterMinPts: this.settings.clustering.minPts,
+        edgeThreshold: options.minSimilarity,
       });
 
-      // Add edges to adjacent nodes (horizontal and vertical)
-      if (col > 0) {
-        edges.push({
-          id: `edge-h-${i}`,
-          fromNode: `node-${i - 1}`,
-          toNode: `node-${i}`,
-          toEnd: 'arrow',
+      // Use embeddings directly (already have title)
+      const builderNotes = noteEmbeddings;
+
+      const graph = canvasBuilder.buildCanvas(builderNotes, {
+        includeClusterLabels: options.includeClusterLabels,
+        showEdges: options.showEdges,
+        edgeThreshold: options.minSimilarity,
+      });
+
+      progressModal.updateStep(1, 'completed');
+
+      // Step 3: Clustering
+      progressModal.setCurrentStep(2);
+      progressModal.setStatus('Clustering notes...');
+
+      const groupNodes = graph.getGroupNodes();
+      progressModal.updateStep(2, 'completed', `${groupNodes.length} clusters`);
+
+      // Step 4: Generate cluster labels (if enabled and LLM configured)
+      progressModal.setCurrentStep(3);
+
+      if (options.includeClusterLabels && this.llmProvider && groupNodes.length > 0) {
+        progressModal.setStatus('Generating cluster labels...');
+
+        // Create path to title mapping
+        const pathToTitle = new Map<string, string>();
+        for (const note of noteEmbeddings) {
+          pathToTitle.set(note.path, note.title);
+        }
+
+        const labelUseCase = new LabelClustersUseCase({
+          llmProvider: this.llmProvider,
         });
-      }
-      if (row > 0) {
-        edges.push({
-          id: `edge-v-${i}`,
-          fromNode: `node-${i - cols}`,
-          toNode: `node-${i}`,
-          toEnd: 'arrow',
+
+        const labelResult = await labelUseCase.execute({
+          graph,
+          pathToTitle,
         });
+
+        if (labelResult.success) {
+          progressModal.updateStep(3, 'completed', `${labelResult.labelsGenerated} labels`);
+        } else {
+          progressModal.updateStep(3, 'completed', 'Skipped (no LLM)');
+        }
+      } else {
+        progressModal.updateStep(3, 'completed', 'Skipped');
       }
-    }
 
-    const canvasData: CanvasData = { nodes, edges };
-    const canvasPath = normalizePath('POC_100_nodes_test.canvas');
+      // Step 5: Save canvas
+      progressModal.setCurrentStep(4);
+      progressModal.setStatus('Creating canvas file...');
 
-    try {
-      await this.createCanvasFile(canvasPath, canvasData);
-      const endTime = performance.now();
-      const duration = (endTime - startTime).toFixed(2);
+      const canvasName =
+        options.topic || options.seedNotePath?.split('/').pop()?.replace('.md', '') || 'knowledge-map';
+      const canvasPath = this.canvasRepository.generateCanvasPath(canvasName, options.outputFolder);
 
-      new Notice(`POC: Created canvas with ${nodeCount} nodes and ${edges.length} edges in ${duration}ms`);
-      console.log(`[POC] Canvas creation time: ${duration}ms`);
+      // Ensure output folder exists
+      if (options.outputFolder) {
+        const folderPath = normalizePath(options.outputFolder);
+        const folderExists = await this.app.vault.adapter.exists(folderPath);
+        if (!folderExists) {
+          await this.app.vault.createFolder(folderPath);
+        }
+      }
+
+      await this.canvasRepository.save(canvasPath, graph);
+      progressModal.updateStep(4, 'completed');
+
+      // Complete
+      progressModal.complete('Canvas generated successfully!');
+
+      // Open the canvas after a short delay
+      setTimeout(async () => {
+        progressModal.close();
+        await this.canvasRepository.open(canvasPath);
+        new Notice(`Canvas created: ${canvasPath}`);
+      }, 1000);
     } catch (error) {
-      console.error('[POC] Failed to create canvas:', error);
-      new Notice(`POC Failed: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * POC: Test group node containment
-   * Tests: Whether nodes inside group boundaries are visually contained
-   */
-  private async testGroupContainment(): Promise<void> {
-    const groupNode: CanvasGroupNode = {
-      id: 'group-1',
-      type: 'group',
-      x: 0,
-      y: 0,
-      width: 600,
-      height: 400,
-      label: 'Test Group',
-      color: '1', // Red preset
-    };
-
-    const fileNodes: CanvasTextNode[] = [
-      {
-        id: 'inner-1',
-        type: 'text',
-        x: 50,
-        y: 50,
-        width: 150,
-        height: 100,
-        text: 'Inside Group 1',
-      },
-      {
-        id: 'inner-2',
-        type: 'text',
-        x: 250,
-        y: 50,
-        width: 150,
-        height: 100,
-        text: 'Inside Group 2',
-      },
-      {
-        id: 'inner-3',
-        type: 'text',
-        x: 150,
-        y: 200,
-        width: 150,
-        height: 100,
-        text: 'Inside Group 3',
-      },
-      {
-        id: 'outside-1',
-        type: 'text',
-        x: 700,
-        y: 100,
-        width: 150,
-        height: 100,
-        text: 'Outside Group',
-      },
-    ];
-
-    const canvasData: CanvasData = {
-      nodes: [groupNode, ...fileNodes],
-      edges: [
-        {
-          id: 'edge-1',
-          fromNode: 'inner-1',
-          toNode: 'inner-2',
-          toEnd: 'arrow',
-        },
-        {
-          id: 'edge-2',
-          fromNode: 'inner-2',
-          toNode: 'inner-3',
-          toEnd: 'arrow',
-        },
-        {
-          id: 'edge-3',
-          fromNode: 'inner-3',
-          toNode: 'outside-1',
-          toEnd: 'arrow',
-          color: '4', // Green
-        },
-      ],
-    };
-
-    const canvasPath = normalizePath('POC_group_containment_test.canvas');
-
-    try {
-      await this.createCanvasFile(canvasPath, canvasData);
-      new Notice('POC: Created group containment test canvas');
-    } catch (error) {
-      console.error('[POC] Failed to create canvas:', error);
-      new Notice(`POC Failed: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * POC: Test mixed positive/negative coordinates
-   * Tests: Whether negative coordinates work correctly
-   */
-  private async testMixedCoordinates(): Promise<void> {
-    const nodes: CanvasTextNode[] = [
-      // Quadrant 1 (positive x, positive y)
-      {
-        id: 'q1',
-        type: 'text',
-        x: 100,
-        y: 100,
-        width: 150,
-        height: 80,
-        text: 'Q1: (+x, +y)',
-        color: '1',
-      },
-      // Quadrant 2 (negative x, positive y)
-      {
-        id: 'q2',
-        type: 'text',
-        x: -300,
-        y: 100,
-        width: 150,
-        height: 80,
-        text: 'Q2: (-x, +y)',
-        color: '2',
-      },
-      // Quadrant 3 (negative x, negative y)
-      {
-        id: 'q3',
-        type: 'text',
-        x: -300,
-        y: -200,
-        width: 150,
-        height: 80,
-        text: 'Q3: (-x, -y)',
-        color: '3',
-      },
-      // Quadrant 4 (positive x, negative y)
-      {
-        id: 'q4',
-        type: 'text',
-        x: 100,
-        y: -200,
-        width: 150,
-        height: 80,
-        text: 'Q4: (+x, -y)',
-        color: '4',
-      },
-      // Origin marker
-      {
-        id: 'origin',
-        type: 'text',
-        x: -50,
-        y: -30,
-        width: 100,
-        height: 60,
-        text: 'ORIGIN\n(0, 0)',
-        color: '6',
-      },
-    ];
-
-    const edges: CanvasEdge[] = [
-      { id: 'e1', fromNode: 'origin', toNode: 'q1', toEnd: 'arrow' },
-      { id: 'e2', fromNode: 'origin', toNode: 'q2', toEnd: 'arrow' },
-      { id: 'e3', fromNode: 'origin', toNode: 'q3', toEnd: 'arrow' },
-      { id: 'e4', fromNode: 'origin', toNode: 'q4', toEnd: 'arrow' },
-    ];
-
-    const canvasData: CanvasData = { nodes, edges };
-    const canvasPath = normalizePath('POC_mixed_coordinates_test.canvas');
-
-    try {
-      await this.createCanvasFile(canvasPath, canvasData);
-      new Notice('POC: Created mixed coordinates test canvas');
-    } catch (error) {
-      console.error('[POC] Failed to create canvas:', error);
-      new Notice(`POC Failed: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * Create a canvas file with the given data
-   */
-  private async createCanvasFile(path: string, data: CanvasData): Promise<void> {
-    const content = JSON.stringify(data, null, 2);
-    const normalizedPath = normalizePath(path);
-
-    // Check if file exists
-    const existingFile = this.app.vault.getAbstractFileByPath(normalizedPath);
-
-    if (existingFile) {
-      // Modify existing file
-      await this.app.vault.adapter.write(normalizedPath, content);
-    } else {
-      // Create new file
-      await this.app.vault.create(normalizedPath, content);
-    }
-
-    // Open the canvas file
-    const file = this.app.vault.getAbstractFileByPath(normalizedPath);
-    if (file) {
-      await this.app.workspace.getLeaf().openFile(file as any);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      new Notice(`Failed to generate canvas: ${message}`);
+      progressModal.setError(0, message);
     }
   }
 }
