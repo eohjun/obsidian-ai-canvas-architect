@@ -15,7 +15,7 @@ export class ObsidianCanvasRepository implements ICanvasRepository {
    */
   async save(path: string, graph: CanvasGraph): Promise<void> {
     const normalizedPath = normalizePath(path);
-    const content = JSON.stringify(graph.toJSON(), null, 2);
+    const content = JSON.stringify(graph.toCanvasFormat(), null, 2);
 
     const existingFile = this.app.vault.getAbstractFileByPath(normalizedPath);
 
