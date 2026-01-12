@@ -252,4 +252,109 @@ export class CanvasGraph {
     this.nodes.clear();
     this.edges.clear();
   }
+
+  /**
+   * Create a CanvasGraph from raw JSON data (e.g., loaded from file)
+   * Note: This creates an empty graph - raw data parsing is complex
+   * and is typically handled at the adapter level
+   */
+  static fromJSON(data: CanvasGraphData): CanvasGraph {
+    const graph = new CanvasGraph();
+
+    // Parse nodes based on type
+    if (data.nodes && Array.isArray(data.nodes)) {
+      for (const nodeData of data.nodes) {
+        const node = CanvasGraph.parseNode(nodeData as Record<string, unknown>);
+        if (node) {
+          graph.addNode(node);
+        }
+      }
+    }
+
+    // Parse edges
+    if (data.edges && Array.isArray(data.edges)) {
+      for (const edgeData of data.edges) {
+        const edge = CanvasGraph.parseEdge(edgeData as Record<string, unknown>);
+        if (edge) {
+          // Only add edge if both nodes exist
+          try {
+            graph.addEdge(edge);
+          } catch {
+            // Ignore edges with missing nodes
+          }
+        }
+      }
+    }
+
+    return graph;
+  }
+
+  /**
+   * Parse a node from raw JSON
+   */
+  private static parseNode(data: Record<string, unknown>): CanvasNode | null {
+    try {
+      const type = data.type as string;
+      const id = data.id as string;
+      const position = new Coordinate(
+        (data.x as number) ?? 0,
+        (data.y as number) ?? 0
+      );
+      const dimension = new Dimension(
+        (data.width as number) ?? 250,
+        (data.height as number) ?? 150
+      );
+
+      switch (type) {
+        case 'file':
+          return FileNode.create(
+            (data.file as string) ?? '',
+            position,
+            dimension
+          );
+        case 'text':
+          return TextNode.create(
+            (data.text as string) ?? '',
+            position,
+            dimension
+          );
+        case 'group':
+          return new GroupNode(
+            id ?? `group-${Date.now()}`,
+            position,
+            dimension,
+            (data.label as string) ?? ''
+          );
+        default:
+          return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Parse an edge from raw JSON
+   */
+  private static parseEdge(data: Record<string, unknown>): CanvasEdge | null {
+    try {
+      const fromNode = data.fromNode as string;
+      const toNode = data.toNode as string;
+
+      if (!fromNode || !toNode) {
+        return null;
+      }
+
+      return CanvasEdge.create(fromNode, toNode, {
+        label: data.label as string,
+        fromSide: data.fromSide as 'top' | 'right' | 'bottom' | 'left' | undefined,
+        toSide: data.toSide as 'top' | 'right' | 'bottom' | 'left' | undefined,
+        fromEnd: data.fromEnd as 'none' | 'arrow' | undefined,
+        toEnd: data.toEnd as 'none' | 'arrow' | undefined,
+        color: data.color as string | undefined,
+      });
+    } catch {
+      return null;
+    }
+  }
 }
