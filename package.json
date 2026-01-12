@@ -1,6 +1,6 @@
 {
   "name": "obsidian-ai-canvas-architect",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "AI-powered canvas generation from topics/notes using embeddings and spatial clustering",
   "main": "main.js",
   "scripts": {

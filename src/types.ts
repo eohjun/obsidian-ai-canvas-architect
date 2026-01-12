@@ -16,6 +16,7 @@ export interface PluginSettings {
     edgeThreshold: number;
     nodeWidth: number;
     nodeHeight: number;
+    outputFolder: string; // Default folder for generated canvases
   };
   clustering: {
     eps: number; // neighborhood radius in pixels
@@ -42,6 +43,7 @@ export const DEFAULT_SETTINGS: PluginSettings = {
     edgeThreshold: 0.7,
     nodeWidth: 250,
     nodeHeight: 150,
+    outputFolder: '',
   },
   clustering: {
     eps: 200,

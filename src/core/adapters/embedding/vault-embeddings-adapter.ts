@@ -126,7 +126,10 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
   /**
    * Get title from path (extract basename without extension)
    */
-  private getTitleFromPath(path: string): string {
+  private getTitleFromPath(path: string | undefined): string {
+    if (!path) {
+      return 'Untitled';
+    }
     const basename = path.split('/').pop() || path;
     return basename.replace(/\.md$/, '');
   }

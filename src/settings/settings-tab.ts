@@ -212,6 +212,19 @@ export class AICanvasArchitectSettingTab extends PluginSettingTab {
             }
           });
       });
+
+    new Setting(containerEl)
+      .setName('Default output folder')
+      .setDesc('Default folder for saving generated canvases. Leave empty for vault root.')
+      .addText((text) => {
+        text
+          .setPlaceholder('e.g., Canvas')
+          .setValue(this.plugin.settings.canvas.outputFolder)
+          .onChange(async (value) => {
+            this.plugin.settings.canvas.outputFolder = value;
+            await this.plugin.saveSettings();
+          });
+      });
   }
 
   private renderClusteringSettings(containerEl: HTMLElement): void {

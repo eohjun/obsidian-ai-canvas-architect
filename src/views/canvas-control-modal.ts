@@ -38,7 +38,7 @@ export class CanvasControlModal extends Modal {
       minSimilarity: settings.canvas.edgeThreshold,
       includeClusterLabels: true,
       showEdges: true,
-      outputFolder: '',
+      outputFolder: settings.canvas.outputFolder || '',
     };
   }
 
