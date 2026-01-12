@@ -2,12 +2,13 @@
  * AI Canvas Architect - Type Definitions
  */
 
-export type AIProvider = 'openai' | 'anthropic';
+import type { AIProviderType } from './core/domain/constants/model-configs.js';
+import { AI_PROVIDERS } from './core/domain/constants/model-configs.js';
 
 export interface PluginSettings {
   ai: {
-    provider: AIProvider;
-    apiKeys: Record<AIProvider, string>;
+    provider: AIProviderType;
+    apiKeys: Record<AIProviderType, string>;
     model: string;
   };
   canvas: {
@@ -29,10 +30,12 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   ai: {
     provider: 'openai',
     apiKeys: {
+      claude: '',
       openai: '',
-      anthropic: '',
+      gemini: '',
+      grok: '',
     },
-    model: 'gpt-4o-mini',
+    model: AI_PROVIDERS.openai.defaultModel,
   },
   canvas: {
     maxNodes: 50,

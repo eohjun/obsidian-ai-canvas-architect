@@ -20,9 +20,14 @@ import { LabelClustersUseCase } from './core/application/use-cases/label-cluster
 // Adapters
 import { ObsidianCanvasRepository } from './core/adapters/obsidian/canvas-repository.js';
 import { VaultEmbeddingsAdapter, generateNoteId } from './core/adapters/embedding/index.js';
-import { OpenAIProvider } from './core/adapters/llm/openai-provider.js';
-import { AnthropicProvider } from './core/adapters/llm/anthropic-provider.js';
+import {
+  OpenAIProvider,
+  AnthropicProvider,
+  GeminiProvider,
+  GrokProvider,
+} from './core/adapters/llm/index.js';
 import type { BaseProvider } from './core/adapters/llm/base-provider.js';
+import type { AIProviderType } from './core/domain/constants/model-configs.js';
 
 export default class AICanvasArchitectPlugin extends Plugin {
   settings!: PluginSettings;
@@ -100,11 +105,48 @@ export default class AICanvasArchitectPlugin extends Plugin {
       return;
     }
 
-    if (provider === 'openai') {
-      this.llmProvider = new OpenAIProvider({ apiKey, model });
-    } else {
-      this.llmProvider = new AnthropicProvider({ apiKey, model });
+    switch (provider) {
+      case 'openai':
+        this.llmProvider = new OpenAIProvider({ apiKey, model });
+        break;
+      case 'claude':
+        this.llmProvider = new AnthropicProvider({ apiKey, model });
+        break;
+      case 'gemini':
+        this.llmProvider = new GeminiProvider({ apiKey, model });
+        break;
+      case 'grok':
+        this.llmProvider = new GrokProvider({ apiKey, model });
+        break;
+      default:
+        this.llmProvider = null;
     }
+  }
+
+  /**
+   * Test API key validity for a specific provider
+   */
+  async testApiKey(provider: AIProviderType, apiKey: string): Promise<boolean> {
+    let testProvider: BaseProvider;
+
+    switch (provider) {
+      case 'openai':
+        testProvider = new OpenAIProvider({ apiKey });
+        break;
+      case 'claude':
+        testProvider = new AnthropicProvider({ apiKey });
+        break;
+      case 'gemini':
+        testProvider = new GeminiProvider({ apiKey });
+        break;
+      case 'grok':
+        testProvider = new GrokProvider({ apiKey });
+        break;
+      default:
+        return false;
+    }
+
+    return testProvider.validateApiKey();
   }
 
   private openCanvasModal(topic?: string, seedNotePath?: string): void {

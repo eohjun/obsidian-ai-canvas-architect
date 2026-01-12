@@ -3,9 +3,13 @@
  * All UI text is in English
  */
 
-import { App, PluginSettingTab, Setting, normalizePath } from 'obsidian';
+import { App, PluginSettingTab, Setting, normalizePath, Notice } from 'obsidian';
 import type AICanvasArchitectPlugin from '../main.js';
-import type { AIProvider } from '../types.js';
+import {
+  type AIProviderType,
+  AI_PROVIDERS,
+  getModelsByProvider,
+} from '../core/domain/constants/model-configs.js';
 
 export class AICanvasArchitectSettingTab extends PluginSettingTab {
   constructor(
@@ -41,56 +45,111 @@ export class AICanvasArchitectSettingTab extends PluginSettingTab {
   private renderAISettings(containerEl: HTMLElement): void {
     containerEl.createEl('h2', { text: 'AI Provider' });
 
+    const currentProvider = this.plugin.settings.ai.provider;
+    const providerConfig = AI_PROVIDERS[currentProvider];
+
     // Provider selection
     new Setting(containerEl)
       .setName('Provider')
       .setDesc('Select the AI provider for generating cluster labels.')
       .addDropdown((dropdown) => {
-        dropdown
-          .addOption('openai', 'OpenAI')
-          .addOption('anthropic', 'Anthropic (Claude)')
-          .setValue(this.plugin.settings.ai.provider)
-          .onChange(async (value) => {
-            this.plugin.settings.ai.provider = value as AIProvider;
-            await this.plugin.saveSettings();
-            this.display(); // Refresh to show appropriate API key field
-          });
+        // Add all providers from AI_PROVIDERS
+        Object.entries(AI_PROVIDERS).forEach(([id, config]) => {
+          dropdown.addOption(id, config.displayName);
+        });
+
+        dropdown.setValue(currentProvider).onChange(async (value) => {
+          const newProvider = value as AIProviderType;
+          this.plugin.settings.ai.provider = newProvider;
+          // Set default model for new provider
+          this.plugin.settings.ai.model = AI_PROVIDERS[newProvider].defaultModel;
+          await this.plugin.saveSettings();
+          this.display(); // Refresh to show appropriate API key field
+        });
       });
 
-    // API Key (show based on selected provider)
-    const provider = this.plugin.settings.ai.provider;
-    const providerName = provider === 'openai' ? 'OpenAI' : 'Anthropic';
-
-    new Setting(containerEl)
-      .setName(`${providerName} API Key`)
-      .setDesc(`Enter your ${providerName} API key for AI features.`)
+    // API Key with Test button
+    const apiKeySetting = new Setting(containerEl)
+      .setName(`${providerConfig.displayName} API Key`)
+      .setDesc(`Enter your ${providerConfig.displayName} API key for AI features.`)
       .addText((text) => {
         text
-          .setPlaceholder('sk-...')
-          .setValue(this.plugin.settings.ai.apiKeys[provider])
+          .setPlaceholder(providerConfig.apiKeyPrefix ? `${providerConfig.apiKeyPrefix}...` : 'Enter API key...')
+          .setValue(this.plugin.settings.ai.apiKeys[currentProvider])
           .onChange(async (value) => {
-            this.plugin.settings.ai.apiKeys[provider] = value;
+            this.plugin.settings.ai.apiKeys[currentProvider] = value;
             await this.plugin.saveSettings();
           });
         text.inputEl.type = 'password';
+        text.inputEl.style.width = '250px';
+      })
+      .addButton((button) => {
+        button.setButtonText('Test').onClick(async () => {
+          const apiKey = this.plugin.settings.ai.apiKeys[currentProvider];
+          if (!apiKey) {
+            new Notice(`Please enter your ${providerConfig.displayName} API key first.`);
+            return;
+          }
+
+          button.setDisabled(true);
+          button.setButtonText('Testing...');
+
+          try {
+            const isValid = await this.plugin.testApiKey(currentProvider, apiKey);
+            if (isValid) {
+              new Notice(`✅ ${providerConfig.displayName} API key is valid!`);
+            } else {
+              new Notice(`❌ ${providerConfig.displayName} API key is invalid.`);
+            }
+          } catch (error) {
+            new Notice(`❌ Failed to test API key: ${(error as Error).message}`);
+          } finally {
+            button.setDisabled(false);
+            button.setButtonText('Test');
+          }
+        });
       });
 
-    // Model selection
-    const models =
-      provider === 'openai'
-        ? ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo']
-        : ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'];
+    // Add "Get API Key" link
+    const linkEl = apiKeySetting.descEl.createEl('a', {
+      text: `Get ${providerConfig.name} API Key`,
+      href: this.getApiKeyUrl(currentProvider),
+    });
+    linkEl.style.display = 'block';
+    linkEl.style.marginTop = '4px';
+
+    // Model selection (dynamic based on provider)
+    const models = getModelsByProvider(currentProvider);
+    const currentModel = this.plugin.settings.ai.model;
 
     new Setting(containerEl)
       .setName('Model')
       .setDesc('Select the AI model for generating labels.')
       .addDropdown((dropdown) => {
-        models.forEach((model) => dropdown.addOption(model, model));
-        dropdown.setValue(this.plugin.settings.ai.model).onChange(async (value) => {
+        models.forEach((model) => {
+          dropdown.addOption(model.id, model.displayName);
+        });
+
+        // If current model not in list, add it
+        if (!models.find((m) => m.id === currentModel)) {
+          dropdown.addOption(currentModel, currentModel);
+        }
+
+        dropdown.setValue(currentModel).onChange(async (value) => {
           this.plugin.settings.ai.model = value;
           await this.plugin.saveSettings();
         });
       });
+  }
+
+  private getApiKeyUrl(provider: AIProviderType): string {
+    const urls: Record<AIProviderType, string> = {
+      claude: 'https://console.anthropic.com/settings/keys',
+      openai: 'https://platform.openai.com/api-keys',
+      gemini: 'https://aistudio.google.com/app/apikey',
+      grok: 'https://console.x.ai/',
+    };
+    return urls[provider];
   }
 
   private renderCanvasSettings(containerEl: HTMLElement): void {
