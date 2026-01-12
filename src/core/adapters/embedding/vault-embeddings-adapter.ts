@@ -12,22 +12,30 @@ import type {
 
 interface EmbeddingIndex {
   version: string;
-  updated: string;
+  totalNotes: number;
+  lastUpdated: string;
+  model: string;
+  dimensions: number;
   notes: {
     [noteId: string]: {
       path: string;
-      hash: string;
-      updated: string;
+      contentHash: string;
+      updatedAt: string;
     };
   };
 }
 
 interface EmbeddingFile {
   noteId: string;
-  path: string;
+  notePath: string;
+  title: string;
   vector: number[];
-  hash: string;
-  updated: string;
+  contentHash: string;
+  model: string;
+  provider: string;
+  dimensions: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface VaultEmbeddingsConfig {
@@ -146,8 +154,8 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
 
     return {
       noteId: embeddingFile.noteId,
-      title: this.getTitleFromPath(embeddingFile.path),
-      path: embeddingFile.path,
+      title: embeddingFile.title || this.getTitleFromPath(embeddingFile.notePath),
+      path: embeddingFile.notePath,
       vector: embeddingFile.vector,
     };
   }
@@ -179,13 +187,13 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
 
     const results: NoteEmbedding[] = [];
 
-    for (const [noteId, info] of Object.entries(index.notes)) {
+    for (const [noteId] of Object.entries(index.notes)) {
       const embeddingFile = await this.loadEmbeddingFile(noteId);
       if (embeddingFile) {
         results.push({
           noteId,
-          title: this.getTitleFromPath(info.path),
-          path: info.path,
+          title: embeddingFile.title || this.getTitleFromPath(embeddingFile.notePath),
+          path: embeddingFile.notePath,
           vector: embeddingFile.vector,
         });
       }
@@ -356,7 +364,7 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
     return {
       totalNotes: index ? Object.keys(index.notes).length : 0,
       embeddingsFolder: this.config.embeddingsFolder,
-      indexUpdated: index?.updated ?? null,
+      indexUpdated: index?.lastUpdated ?? null,
     };
   }
 }
