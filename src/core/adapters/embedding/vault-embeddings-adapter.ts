@@ -73,6 +73,9 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
   private config: VaultEmbeddingsConfig;
   private indexCache: EmbeddingIndex | null = null;
   private embeddingsCache: Map<string, EmbeddingFile> = new Map();
+  private allEmbeddingsCache: NoteEmbedding[] | null = null;
+  private allEmbeddingsCacheTime = 0;
+  private readonly ALL_CACHE_TTL_MS = 60000; // 60s TTL
 
   constructor(
     private app: App,
@@ -180,6 +183,12 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
    * Get all available embeddings
    */
   async getAllEmbeddings(): Promise<NoteEmbedding[]> {
+    // TTL cache: avoid repeated disk reads within same operation
+    const now = Date.now();
+    if (this.allEmbeddingsCache && now - this.allEmbeddingsCacheTime < this.ALL_CACHE_TTL_MS) {
+      return this.allEmbeddingsCache;
+    }
+
     const index = await this.loadIndex();
     if (!index) {
       return [];
@@ -199,6 +208,8 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
       }
     }
 
+    this.allEmbeddingsCache = results;
+    this.allEmbeddingsCacheTime = now;
     return results;
   }
 
@@ -349,6 +360,8 @@ export class VaultEmbeddingsAdapter implements IEmbeddingProvider {
   clearCache(): void {
     this.indexCache = null;
     this.embeddingsCache.clear();
+    this.allEmbeddingsCache = null;
+    this.allEmbeddingsCacheTime = 0;
   }
 
   /**

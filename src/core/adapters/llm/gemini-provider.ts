@@ -106,7 +106,7 @@ export class GeminiProvider extends BaseProvider {
         };
       }
 
-      const text = data.candidates[0].content.parts[0]?.text;
+      const text = data.candidates[0]?.content?.parts?.[0]?.text;
       if (!text) {
         return {
           success: false,
@@ -194,7 +194,7 @@ export class GeminiProvider extends BaseProvider {
         };
       }
 
-      const text = data.candidates[0].content.parts[0]?.text;
+      const text = data.candidates[0]?.content?.parts?.[0]?.text;
       if (!text) {
         return {
           success: false,
