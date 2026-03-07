@@ -30,7 +30,7 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
     name: 'Claude',
     displayName: 'Anthropic Claude',
     endpoint: 'https://api.anthropic.com/v1',
-    defaultModel: 'claude-sonnet-4-5-20250929',
+    defaultModel: 'claude-sonnet-4-6',
     apiKeyPrefix: 'sk-ant-',
   },
   openai: {
@@ -38,7 +38,7 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
     name: 'OpenAI',
     displayName: 'OpenAI GPT',
     endpoint: 'https://api.openai.com/v1',
-    defaultModel: 'gpt-4o-mini',
+    defaultModel: 'gpt-5-mini',
     apiKeyPrefix: 'sk-',
   },
   gemini: {
@@ -46,7 +46,7 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
     name: 'Gemini',
     displayName: 'Google Gemini',
     endpoint: 'https://generativelanguage.googleapis.com/v1beta',
-    defaultModel: 'gemini-3-flash-preview',
+    defaultModel: 'gemini-2.5-flash',
     apiKeyPrefix: 'AIza',
   },
   grok: {
@@ -60,94 +60,84 @@ export const AI_PROVIDERS: Record<AIProviderType, AIProviderConfig> = {
 
 export const MODEL_CONFIGS: Record<string, ModelConfig> = {
   // Claude models
-  'claude-sonnet-4-5-20250929': {
-    id: 'claude-sonnet-4-5-20250929',
-    displayName: 'Claude Sonnet 4.5',
+  'claude-opus-4-6': {
+    id: 'claude-opus-4-6',
+    displayName: 'Claude Opus 4.6',
     provider: 'claude',
-    maxTokens: 16384,
+    maxTokens: 128000,
+    inputCostPer1M: 5.0,
+    outputCostPer1M: 25.0,
+  },
+  'claude-sonnet-4-6': {
+    id: 'claude-sonnet-4-6',
+    displayName: 'Claude Sonnet 4.6',
+    provider: 'claude',
+    maxTokens: 64000,
     inputCostPer1M: 3.0,
     outputCostPer1M: 15.0,
   },
-  'claude-opus-4-5-20251101': {
-    id: 'claude-opus-4-5-20251101',
-    displayName: 'Claude Opus 4.5',
+  'claude-haiku-4-5-20251001': {
+    id: 'claude-haiku-4-5-20251001',
+    displayName: 'Claude Haiku 4.5',
     provider: 'claude',
-    maxTokens: 32768,
-    inputCostPer1M: 15.0,
-    outputCostPer1M: 75.0,
-  },
-  'claude-3-5-haiku-20241022': {
-    id: 'claude-3-5-haiku-20241022',
-    displayName: 'Claude 3.5 Haiku',
-    provider: 'claude',
-    maxTokens: 8192,
-    inputCostPer1M: 0.8,
-    outputCostPer1M: 4.0,
+    maxTokens: 64000,
+    inputCostPer1M: 1.0,
+    outputCostPer1M: 5.0,
   },
 
   // OpenAI models - Reasoning (max_completion_tokens, NO temperature)
-  'gpt-5.2': {
-    id: 'gpt-5.2',
-    displayName: 'GPT-5.2',
+  'gpt-5.4': {
+    id: 'gpt-5.4',
+    displayName: 'GPT-5.4',
     provider: 'openai',
-    maxTokens: 32768,
-    inputCostPer1M: 1.75,
-    outputCostPer1M: 14.0,
-    isReasoning: true,
-  },
-  'o3-mini': {
-    id: 'o3-mini',
-    displayName: 'O3 Mini',
-    provider: 'openai',
-    maxTokens: 65536,
-    inputCostPer1M: 1.1,
-    outputCostPer1M: 4.4,
-    isReasoning: true,
-  },
-  // OpenAI models - Standard (max_tokens, temperature OK)
-  'gpt-4o': {
-    id: 'gpt-4o',
-    displayName: 'GPT-4o',
-    provider: 'openai',
-    maxTokens: 16384,
+    maxTokens: 128000,
     inputCostPer1M: 2.5,
-    outputCostPer1M: 10.0,
-    isReasoning: false,
+    outputCostPer1M: 15.0,
+    isReasoning: true,
   },
-  'gpt-4o-mini': {
-    id: 'gpt-4o-mini',
-    displayName: 'GPT-4o Mini',
+  'gpt-5-mini': {
+    id: 'gpt-5-mini',
+    displayName: 'GPT-5 Mini',
     provider: 'openai',
-    maxTokens: 16384,
-    inputCostPer1M: 0.15,
-    outputCostPer1M: 0.6,
-    isReasoning: false,
+    maxTokens: 128000,
+    inputCostPer1M: 0.25,
+    outputCostPer1M: 2.0,
+    isReasoning: true,
+  },
+  'gpt-5-nano': {
+    id: 'gpt-5-nano',
+    displayName: 'GPT-5 Nano',
+    provider: 'openai',
+    maxTokens: 128000,
+    inputCostPer1M: 0.05,
+    outputCostPer1M: 0.4,
+    isReasoning: true,
   },
 
   // Gemini models
-  'gemini-3-pro-preview': {
-    id: 'gemini-3-pro-preview',
-    displayName: 'Gemini 3 Pro',
+  'gemini-3.1-pro-preview': {
+    id: 'gemini-3.1-pro-preview',
+    displayName: 'Gemini 3.1 Pro',
     provider: 'gemini',
     maxTokens: 65536,
-    inputCostPer1M: 2.5,
-    outputCostPer1M: 10.0,
+    inputCostPer1M: 2.0,
+    outputCostPer1M: 12.0,
   },
-  'gemini-3-flash-preview': {
-    id: 'gemini-3-flash-preview',
-    displayName: 'Gemini 3 Flash',
+  'gemini-2.5-flash': {
+    id: 'gemini-2.5-flash',
+    displayName: 'Gemini 2.5 Flash',
     provider: 'gemini',
     maxTokens: 65536,
-    inputCostPer1M: 0.5,
-    outputCostPer1M: 3.0,
+    inputCostPer1M: 0.3,
+    outputCostPer1M: 2.5,
   },
   'gemini-2.0-flash': {
     id: 'gemini-2.0-flash',
     displayName: 'Gemini 2.0 Flash',
     provider: 'gemini',
     maxTokens: 8192,
-    inputCostPer1M: 0.075,
-    outputCostPer1M: 0.3,
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.4,
   },
 
   // Grok models
@@ -156,21 +146,21 @@ export const MODEL_CONFIGS: Record<string, ModelConfig> = {
     displayName: 'Grok 4.1 Fast',
     provider: 'grok',
     maxTokens: 16384,
-    inputCostPer1M: 3.0,
-    outputCostPer1M: 15.0,
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 0.5,
   },
   'grok-4-1-fast-non-reasoning': {
     id: 'grok-4-1-fast-non-reasoning',
     displayName: 'Grok 4.1 Fast (Non-Reasoning)',
     provider: 'grok',
     maxTokens: 16384,
-    inputCostPer1M: 0.6,
-    outputCostPer1M: 4.0,
+    inputCostPer1M: 0.2,
+    outputCostPer1M: 0.5,
   },
 };
 
 /**
- * Check if a model is a reasoning model (OpenAI o1/o3/gpt-5.x)
+ * Check if a model is a reasoning model (OpenAI GPT-5.x)
  */
 export function isReasoningModel(modelId: string): boolean {
   const config = MODEL_CONFIGS[modelId];
@@ -179,8 +169,7 @@ export function isReasoningModel(modelId: string): boolean {
   }
   // Fallback detection by model ID pattern
   return modelId.startsWith('gpt-5') ||
-         modelId.startsWith('o1') ||
-         modelId.startsWith('o3');
+         modelId.startsWith('o4');
 }
 
 export function getModelsByProvider(provider: AIProviderType): ModelConfig[] {

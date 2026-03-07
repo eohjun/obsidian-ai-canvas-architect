@@ -30,7 +30,7 @@ interface GeminiConfig extends LLMConfig {
   model?: string;
 }
 
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 export class GeminiProvider extends BaseProvider {
@@ -251,6 +251,6 @@ export class GeminiProvider extends BaseProvider {
    * Get available models
    */
   getAvailableModels(): string[] {
-    return ['gemini-3-pro-preview', 'gemini-3-flash-preview', 'gemini-2.0-flash'];
+    return ['gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.0-flash'];
   }
 }

@@ -41,7 +41,7 @@ interface OpenAIConfig extends LLMConfig {
   model?: string;
 }
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'gpt-5-nano';
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
 export class OpenAIProvider extends BaseProvider {
@@ -285,6 +285,6 @@ export class OpenAIProvider extends BaseProvider {
    * Get available models
    */
   getAvailableModels(): string[] {
-    return ['gpt-5.2', 'o3-mini', 'gpt-4o', 'gpt-4o-mini'];
+    return ['gpt-5.4', 'gpt-5-mini', 'gpt-5-nano'];
   }
 }
