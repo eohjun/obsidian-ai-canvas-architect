@@ -1,8 +1,11 @@
 /**
  * Base LLM Provider
  * Abstract base class for LLM providers
+ *
+ * 수정: fetch() → requestUrl() 전환
  */
 
+import { requestUrl, RequestUrlParam } from 'obsidian';
 import type {
   ILLMProvider,
   LLMResponse,
@@ -30,6 +33,14 @@ export abstract class BaseProvider implements ILLMProvider {
    */
   isConfigured(): boolean {
     return !!this.config.apiKey && this.config.apiKey.trim().length > 0;
+  }
+
+  /**
+   * HTTP request wrapper using Obsidian's requestUrl
+   */
+  protected async makeRequest<T>(options: RequestUrlParam): Promise<T> {
+    const response = await requestUrl(options);
+    return response.json as T;
   }
 
   /**
