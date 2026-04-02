@@ -56,7 +56,7 @@ export class AnthropicProvider extends BaseProvider {
       const body = buildAnthropicBody(
         [{ role: 'user', content: 'Hello' }],
         this.model,
-        { maxTokens: 10 }
+        { maxTokens: 4096 }
       );
       const json = await this.makeRequest<Record<string, unknown>>({
         url: `${this.baseUrl}/messages`,
@@ -76,7 +76,7 @@ export class AnthropicProvider extends BaseProvider {
 
   getName(): string { return 'Anthropic'; }
   getAvailableModels(): string[] {
-    return ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'];
+    return ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'];
   }
 
   private async doRequest(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {

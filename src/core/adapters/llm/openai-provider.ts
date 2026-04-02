@@ -9,7 +9,7 @@ import { BaseProvider, type LLMConfig } from './base-provider.js';
 import type { LLMResponse, LLMOptions, LLMMessage } from '../../domain/interfaces/llm-provider.interface.js';
 import { buildOpenAIBody, parseOpenAIResponse } from 'obsidian-llm-shared';
 
-const DEFAULT_MODEL = 'gpt-5-nano';
+const DEFAULT_MODEL = 'gpt-5.4-nano';
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
 export class OpenAIProvider extends BaseProvider {
@@ -53,25 +53,19 @@ export class OpenAIProvider extends BaseProvider {
   async validateApiKey(): Promise<boolean> {
     if (!this.isConfigured()) return false;
     try {
-      const body = buildOpenAIBody(
-        [{ role: 'user', content: 'Hello' }],
-        this.model,
-        { maxTokens: 10 }
-      );
-      const json = await this.makeRequest<Record<string, unknown>>({
-        url: `${this.baseUrl}/chat/completions`,
-        method: 'POST',
-        headers: { Authorization: `Bearer ${this.config.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      const json = await this.makeRequest<{ data?: unknown[] }>({
+        url: `${this.baseUrl}/models`,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${this.config.apiKey}` },
       });
-      return parseOpenAIResponse(json).success;
+      return Array.isArray(json.data);
     } catch {
       return false;
     }
   }
 
   getName(): string { return 'OpenAI'; }
-  getAvailableModels(): string[] { return ['gpt-5.4', 'gpt-5-mini', 'gpt-5-nano']; }
+  getAvailableModels(): string[] { return ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano']; }
 
   private async doRequest(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const body = buildOpenAIBody(messages, this.model, {

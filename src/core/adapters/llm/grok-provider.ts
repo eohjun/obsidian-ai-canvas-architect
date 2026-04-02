@@ -53,18 +53,12 @@ export class GrokProvider extends BaseProvider {
   async validateApiKey(): Promise<boolean> {
     if (!this.isConfigured()) return false;
     try {
-      const body = buildGrokBody(
-        [{ role: 'user', content: 'Hello' }],
-        this.model,
-        { maxTokens: 10 }
-      );
-      const json = await this.makeRequest<Record<string, unknown>>({
-        url: `${this.baseUrl}/chat/completions`,
-        method: 'POST',
-        headers: { Authorization: `Bearer ${this.config.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      const json = await this.makeRequest<{ data?: unknown[] }>({
+        url: `${this.baseUrl}/models`,
+        method: 'GET',
+        headers: { Authorization: `Bearer ${this.config.apiKey}` },
       });
-      return parseGrokResponse(json).success;
+      return Array.isArray(json.data);
     } catch {
       return false;
     }

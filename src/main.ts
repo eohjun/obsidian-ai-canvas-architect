@@ -83,7 +83,22 @@ export default class AICanvasArchitectPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loadedData = await this.loadData();
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...(loadedData || {}),
+      ai: {
+        ...DEFAULT_SETTINGS.ai,
+        ...(loadedData?.ai || {}),
+        apiKeys: {
+          ...DEFAULT_SETTINGS.ai.apiKeys,
+          ...(loadedData?.ai?.apiKeys || {}),
+        },
+      },
+      canvas: { ...DEFAULT_SETTINGS.canvas, ...(loadedData?.canvas || {}) },
+      clustering: { ...DEFAULT_SETTINGS.clustering, ...(loadedData?.clustering || {}) },
+      embeddings: { ...DEFAULT_SETTINGS.embeddings, ...(loadedData?.embeddings || {}) },
+    };
   }
 
   async saveSettings(): Promise<void> {
