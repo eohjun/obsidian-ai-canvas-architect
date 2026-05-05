@@ -66,7 +66,7 @@ export class GrokProvider extends BaseProvider {
 
   getName(): string { return 'Grok'; }
   getAvailableModels(): string[] {
-    return ['grok-4-1-fast', 'grok-4-1-fast-non-reasoning'];
+    return ['grok-4.3', 'grok-4-1-fast', 'grok-4-1-fast-non-reasoning'];
   }
 
   private async doRequest(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {

@@ -4,6 +4,7 @@
  */
 
 import { Plugin, Notice, normalizePath } from 'obsidian';
+import { isDeprecatedModel, getProviderConfig } from 'obsidian-llm-shared';
 import type { PluginSettings } from './types.js';
 import { DEFAULT_SETTINGS } from './types.js';
 import { AICanvasArchitectSettingTab } from './settings/index.js';
@@ -99,6 +100,18 @@ export default class AICanvasArchitectPlugin extends Plugin {
       clustering: { ...DEFAULT_SETTINGS.clustering, ...(loadedData?.clustering || {}) },
       embeddings: { ...DEFAULT_SETTINGS.embeddings, ...(loadedData?.embeddings || {}) },
     };
+    this.migrateDeprecatedModels();
+  }
+
+  private migrateDeprecatedModels(): void {
+    if (this.settings.ai.model && isDeprecatedModel(this.settings.ai.model)) {
+      const fallback = getProviderConfig(this.settings.ai.provider)?.defaultModel;
+      if (fallback) {
+        console.warn(`[ai-canvas-architect] Migrated deprecated model ${this.settings.ai.model} → ${fallback}`);
+        this.settings.ai.model = fallback;
+        void this.saveData(this.settings);
+      }
+    }
   }
 
   async saveSettings(): Promise<void> {

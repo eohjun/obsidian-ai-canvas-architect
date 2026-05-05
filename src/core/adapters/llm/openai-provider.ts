@@ -65,7 +65,7 @@ export class OpenAIProvider extends BaseProvider {
   }
 
   getName(): string { return 'OpenAI'; }
-  getAvailableModels(): string[] { return ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano']; }
+  getAvailableModels(): string[] { return ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano']; }
 
   private async doRequest(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const body = buildOpenAIBody(messages, this.model, {

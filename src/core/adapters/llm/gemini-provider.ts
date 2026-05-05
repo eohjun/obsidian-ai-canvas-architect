@@ -64,7 +64,7 @@ export class GeminiProvider extends BaseProvider {
 
   getName(): string { return 'Gemini'; }
   getAvailableModels(): string[] {
-    return ['gemini-3.1-pro-preview', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    return ['gemini-3.1-pro-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-flash'];
   }
 
   private async doRequest(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
